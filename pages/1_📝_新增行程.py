@@ -1,10 +1,12 @@
+# pages/1_📝_新增行程.py
 import streamlit as st
 import pandas as pd
+import datetime
 from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(layout="wide")
 st.title("📋 階段四終極完成版：GitHub 雲端同步 Trello 看板")
-st.caption("授權標註：edit by 闕河正 | 完整功能版")
+st.caption("授權標註：edit by 闕河正 | 完整功能版 (精準時間提醒擴充)")
 
 # 🔒 核心安全：讀取 Secrets 中的 Discord 網址
 WEBHOOK_URL = st.secrets.get("DISCORD_WEBHOOK_URL")
@@ -25,61 +27,67 @@ with st.form("task_input_form", clear_on_submit=True):
         new_status = st.selectbox("🚦 狀態", ["To Do", "In Progress", "Done"])
     with c_owner:
         new_owner = st.text_input("👤 負責人", placeholder="誰來負責...")
+        
+    # ─── ➕ 闕教授提案：新增時間與提前提醒設定 ───
+    c_date, c_time, c_remind = st.columns([1, 1, 2])
+    with c_date:
+        task_date = st.date_input("📅 截止日期", datetime.date.today())
+    with c_time:
+        task_time = st.time_input("⏰ 截止時間", datetime.time(12, 0))
+    with c_remind:
+        remind_mins = st.selectbox("🔔 提前多久提醒我？", [0, 5, 10, 20, 30, 60], format_func=lambda x: "時間到才提醒" if x==0 else f"任務開始前 {x} 分鐘")
+    # ──────────────────────────────────────────
     
     submit_btn = st.form_submit_button("確認指派並同步雲端")
 
 if submit_btn and new_title and new_owner:
-    new_data = {"title": new_title, "status": new_status, "owner": new_owner}
+    # 💡 將日期與時間組合成鬧鐘看得懂的標準格式： YYYY-MM-DD HH:MM
+    deadline_str = f"{task_date} {task_time.strftime('%H:%M')}"
+    
+    # 準備新資料，包含時間與提醒參數
+    new_data = {
+        "title": new_title, 
+        "status": new_status, 
+        "owner": new_owner,
+        "deadline": deadline_str,        # ➕ 新增：截止時間字串
+        "remind_before": int(remind_mins) # ➕ 新增：提前幾分鐘（整數）
+    }
     new_row = pd.DataFrame([new_data])
     
-    # 💡 闕教授原創核心：新版 Python 改用 pd.concat() 進行表格拼接
+    # 表格拼接並上傳
     updated_df = pd.concat([df, new_row], ignore_index=True)
-    
-    # 🚀 直接利用套件更新雲端試算表
     conn.update(worksheet="Tasks", data=updated_df)
-    st.success("🎉 資料已跨越限制，成功同步寫入 Google 試算表！")
+    st.success("🎉 任務與提醒時間已成功同步寫入 Google 試算表！")
     st.rerun() 
 
 st.write("---")
 
 # ==========================================
-# 🗂️ 區塊二：下方 Trello 三縱欄畫布與卡片渲染
+# 🗂️ 區塊二：下方 Trello 看板渲染 (維持原樣，但卡片多顯示時間)
 # ==========================================
 st.write("### 🗂️ 看板動態狀態監控")
 trello_col1, trello_col2, trello_col3 = st.columns(3)
 
-# 🔴 【第一欄：To Do】
-with trello_col1:
-    st.markdown("### <span style='color:red'>🔴 To Do (待辦)</span>", unsafe_allow_html=True)
-    todo_list = df[df["status"] == "To Do"] 
-    if not todo_list.empty:
-        for idx, row in todo_list.iterrows(): 
+def render_cards(task_df):
+    if not task_df.empty:
+        for idx, row in task_df.iterrows(): 
             with st.container(border=True):
                 st.write(f"**📌 {row['title']}**")      
                 st.caption(f"負責人: {row['owner']}")   
+                # 💡 貼心調整：如果資料表裡有 deadline 欄位，就顯示在卡片上
+                if "deadline" in row and pd.notna(row["deadline"]):
+                    st.caption(f"⏳ 截止: {row['deadline']} (提前 {row.get('remind_before', 0)} 分)")
     else:
-        st.info("暫無待辦任務")
+        st.info("暫無任務")
 
-# 🟡 【第二欄：In Progress】
+with trello_col1:
+    st.markdown("### <span style='color:red'>🔴 To Do (待辦)</span>", unsafe_allow_html=True)
+    render_cards(df[df["status"] == "To Do"])
+
 with trello_col2:
     st.markdown("### <span style='color:orange'>🟡 In Progress (執行中)</span>", unsafe_allow_html=True)
-    ip_list = df[df["status"] == "In Progress"]
-    if not ip_list.empty:
-        for idx, row in ip_list.iterrows():
-            with st.container(border=True):
-                st.write(f"**⚡ {row['title']}**")
-                st.caption(f"負責人: {row['owner']}")
-    else:
-        st.info("暫無執行中任務")
+    render_cards(df[df["status"] == "In Progress"])
 
-# 🟢 【第三欄：Done】
 with trello_col3:
     st.markdown("### <span style='color:green'>🟢 Done (已完成)</span>", unsafe_allow_html=True)
-    done_list = df[df["status"] == "Done"]
-    if not done_list.empty:
-        for idx, row in done_list.iterrows():
-            with st.container(border=True):
-                st.write(f"**✅ {row['title']}**")
-                st.caption(f"負責人: {row['owner']}")
-    else:
-        st.info("暫無已完成任務")
+    render_cards(df[df["status"] == "Done"])
