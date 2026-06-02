@@ -40,26 +40,26 @@ with st.form("task_input_form", clear_on_submit=True):
     
     submit_btn = st.form_submit_button("確認指派並同步雲端")
 
+# 節錄 pages/1_📝_新增行程.py 按鈕觸發段落
 if submit_btn and new_title and new_owner:
-    # 💡 將日期與時間組合成鬧鐘看得懂的標準格式： YYYY-MM-DD HH:MM
     deadline_str = f"{task_date} {task_time.strftime('%H:%M')}"
     
-    # 準備新資料，包含時間與提醒參數
-    new_data = {
+    # 🎯 打包成全新結構，並加上 action 標記
+    event_data = {
+        "action": "create",
         "title": new_title, 
         "status": new_status, 
         "owner": new_owner,
-        "deadline": deadline_str,        # ➕ 新增：截止時間字串
-        "remind_before": int(remind_mins) # ➕ 新增：提前幾分鐘（整數）
+        "deadline": deadline_str,        
+        "remind_before": int(remind_mins)
     }
-    new_row = pd.DataFrame([new_data])
     
-    # 表格拼接並上傳
-    updated_df = pd.concat([df, new_row], ignore_index=True)
-    conn.update(worksheet="Tasks", data=updated_df)
-    st.success("🎉 任務與提醒時間已成功同步寫入 Google 試算表！")
-    st.rerun() 
-
+    with st.spinner("正在同步寫入 Google 看板..."):
+        res = requests.post(GOOGLE_SCRIPT_URL, json=event_data)
+        if res.text == "SUCCESS":
+            st.success("🎉 任務已成功寫入雲端看板！")
+            st.rerun()
+            
 st.write("---")
 
 # ==========================================
