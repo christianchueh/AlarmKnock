@@ -9,8 +9,10 @@ st.set_page_config(layout="wide")
 st.title("📋 階段四終極完成版：GitHub 雲端同步 Trello 看板")
 st.caption("授權標註：edit by 闕河正 | 完整功能版 (精準時間提醒擴充)")
 
-# 🔒 核心安全：讀取 Secrets 中的 Discord 網址
+# 🔒 核心安全：從祕密抽屜讀取所有網址變數（請確保有以下這三行）
 WEBHOOK_URL = st.secrets.get("DISCORD_WEBHOOK_URL")
+GOOGLE_SCRIPT_URL = st.secrets.get("GOOGLE_SCRIPT_URL")  # 🎯 宣告給 Python 認識！
+GOOGLE_SHEET_URL = st.secrets.get("GOOGLE_SHEET_URL")
 
 # 🤝 原生連線：直接跟 Google Sheets 握手
 conn = st.connection("gsheets", type=GSheetsConnection)
