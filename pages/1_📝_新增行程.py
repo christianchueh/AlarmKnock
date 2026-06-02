@@ -2,6 +2,7 @@
 import streamlit as st
 import pandas as pd
 import datetime
+import requests
 from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(layout="wide")
