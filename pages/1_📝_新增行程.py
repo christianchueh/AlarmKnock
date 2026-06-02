@@ -12,6 +12,9 @@ st.write("這個畫面負責收集資料，並使用我們做好的模組來生�
 # 🔒 安全機制：從 Streamlit 祕密抽屜讀取 Discord 網址
 WEBHOOK_URL = st.secrets.get("DISCORD_WEBHOOK_URL")
 
+# 🎯 檢查：有沒有寫這兩行來建立與 Google Sheets 的連線？
+conn = st.connection("gsheets", type="sheets")  # 👈 就是漏了宣告 conn！
+
 # 1. 初始化一個箱子 (List)，用來在網頁記憶體中存放所有的行程物件
 if "events_list" not in st.session_state:
     st.session_state.events_list = []
