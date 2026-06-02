@@ -30,13 +30,13 @@ def main():
         title, status, owner, deadline, remind_before, reminded = row[0], row[1], row[2], row[3], row[4], row[5]
         
         # 🎯 雙重防線：只有狀態是 To Do，且 reminded 還是 FALSE 的任務才處理！
-        if status.strip() == "To Do" and reminded.strip().upper() == "FALSE":
+        if status.strip() == "To Do":
             try:
                 deadline_time = datetime.strptime(deadline.strip(), "%Y-%m-%d %H:%M")
                 remind_before_mins = int(remind_before)
             except:
                 continue
-                
+            print("近來todo") 
             trigger_time = deadline_time - timedelta(minutes=remind_before_mins)
             
             # 🔍 終極安全機制：現在時間大於提醒點，且「過期不超過 15 分鐘」！
