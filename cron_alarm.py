@@ -22,9 +22,10 @@ def main():
     
     now_taiwan = datetime.utcnow() + timedelta(hours=8)
     print(f"🤖 鬧鐘助理巡邏中... 當前台灣時間：{now_taiwan.strftime('%Y-%m-%d %H:%M')}")
-
+    print(reader)
     for row in reader:
         # 防呆：確保整行資料是完整的
+        print(len(row))
         if len(row) < 6: continue
         
         title, status, owner, deadline, remind_before, reminded = row[0], row[1], row[2], row[3], row[4], row[5]
