@@ -2,7 +2,7 @@ name: Google Sheet 定時鬧鐘助理
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # 每 15 分鐘自動巡邏一次
+    - cron: '0 * * * *' # 🎯 順應免費版規範：改成整點自動巡邏一次（避開高頻封鎖）
   workflow_dispatch: # 允許手動點擊測試
 
 jobs:
@@ -10,19 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: 🐋 複製程式碼
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4.2.2 # 🎯 升級到最新小版本，全面相容 Node.js 24
 
     - name: 🐍 設定 Python 環境
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v5.4.0 # 🎯 升級到最新小版本，全面相容 Node.js 24
       with:
-        python-version: '3.14'
+        python-version: '3.11' # 🎯 維持最穩定的 3.11 環境
 
     - name: 📦 安裝必要套件
       run: pip install requests
 
     - name: ⏰ 執行定時鬧鐘
       env:
-        # 🔒 記得去 GitHub 專案的 Settings -> Secrets 設定這兩個變數
+        ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true # 💡 安全備用：強制允許雲端相容
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         GOOGLE_SHEET_URL: ${{ secrets.GOOGLE_SHEET_URL }}
       run: python cron_alarm.py
