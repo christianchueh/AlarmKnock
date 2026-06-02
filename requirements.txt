@@ -1,4 +1,5 @@
 streamlit>=1.28.0
-st-filesystems
+streamlit-gsheets
+st-filesystem
 gcsfs
 requests
