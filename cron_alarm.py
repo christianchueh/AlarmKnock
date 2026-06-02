@@ -7,11 +7,8 @@ from datetime import datetime, timedelta
 def main():
     DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
     GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")
+    GOOGLE_SCRIPT_URL = os.getenv("GOOGLE_SCRIPT_URL") # 👈 鬧鐘也需要這個傳送門網址
     
-    if not GOOGLE_SHEET_URL:
-        print("❌ 錯誤：找不到 GOOGLE_SHEET_URL")
-        return
-
     if "/edit" in GOOGLE_SHEET_URL:
         csv_url = GOOGLE_SHEET_URL.split("/edit")[0] + "/export?format=csv"
     else:
@@ -19,52 +16,53 @@ def main():
 
     response = requests.get(csv_url)
     response.encoding = 'utf-8'
+    reader = csv.reader(response.text.splitlines())
     
-    lines = response.text.splitlines()
-    reader = csv.DictReader(lines)
-
-    # ⏱️ 獲取當前台灣時間 (UTC + 8)
+    # 讀取標頭，確保我們能用欄位名稱對應（順序：title, status, owner, deadline, remind_before, reminded）
+    header = next(reader)
+    
     now_taiwan = datetime.utcnow() + timedelta(hours=8)
     print(f"🤖 鬧鐘助理巡邏中... 當前台灣時間：{now_taiwan.strftime('%Y-%m-%d %H:%M')}")
 
     for row in reader:
-        if not row.get("title") or not row.get("deadline"):
-            continue
-            
-        current_status = row["status"].strip()
+        # 防呆：確保整行資料是完整的
+        if len(row) < 6: continue
         
-        # 🎯 只針對還沒完成的任務 (To Do) 進行時間倒數檢查
-        if current_status == "To Do":
-            task_title = row["title"]
-            task_owner = row.get("owner", "未指派")
-            
-            # 解析試算表中的截止時間
+        title, status, owner, deadline, remind_before, reminded = row[0], row[1], row[2], row[3], row[4], row[5]
+        
+        # 🎯 雙重防線：只有狀態是 To Do，且 reminded 還是 FALSE 的任務才處理！
+        if status.strip() == "To Do" and reminded.strip().upper() == "FALSE":
             try:
-                deadline_time = datetime.strptime(row["deadline"].strip(), "%Y-%m-%d %H:%M")
-                remind_before_mins = int(row.get("remind_before", 0))
-            except Exception as e:
-                print(f"⚠️ 任務【{task_title}】時間格式解析錯誤，跳過。")
+                deadline_time = datetime.strptime(deadline.strip(), "%Y-%m-%d %H:%M")
+                remind_before_mins = int(remind_before)
+            except:
                 continue
-            
-            # 💡 計算「應該觸發提醒的時間點」：截止時間減去提前的分鐘數
+                
             trigger_time = deadline_time - timedelta(minutes=remind_before_mins)
             
-            # 🔍 巡邏核心檢查：如果「現在時間」已經大於等於「應該提醒的時間」
+            # 🔍 時間到了！
             if now_taiwan >= trigger_time:
-                # 為了避免每次排程重複轟炸 Discord，我們可以做個防呆提示
-                print(f"🚨 檢查到任務【{task_title}】已達提醒門檻！(設定：提前 {remind_before_mins} 分鐘)")
-                
+                # 🚀 動作一：發送 Discord
                 payload = {
-                    "content": f"⏰ **【即將到期提醒】** 負責人請注意進度！",
+                    "content": f"⏰ **【即將到期提醒】** 任務即將截止！",
                     "embeds": [{
-                        "title": f"🔔 任務：{task_title}",
-                        "description": f"👤 **負責人：** {task_owner}\n⏳ **截止時間：** {row['deadline']}\n🚨 **提醒設定：** 提前 {remind_before_mins} 分鐘通知\n🚦 **目前狀態：** {current_status}",
-                        "color": 15158332  # 🔴 紅色
+                        "title": f"🔔 任務：{title}",
+                        "description": f"👤 負責人：{owner}\n⏳ 截止時間：{deadline}",
+                        "color": 15158332
                     }]
                 }
-                
                 requests.post(DISCORD_WEBHOOK_URL, json=payload)
-                print(f"🟢 已成功向 Discord 發送【{task_title}】的時間催辦令！")
+                print(f"🟢 Discord 通知成功：{title}")
+                
+                # 📝 動作二：立刻回寫 Google Sheets，把狀態更新為已提醒！
+                update_data = {
+                    "action": "mark_reminded",
+                    "title": title,
+                    "owner": owner
+                }
+                # 呼叫 Apps Script 幫我們在對應的那一列 F 欄填上 TRUE
+                requests.post(GOOGLE_SCRIPT_URL, json=update_data)
+                print(f"🔒 雲端狀態已鎖定，下次不會再重複發送【{title}】。")
 
 if __name__ == "__main__":
     main()
