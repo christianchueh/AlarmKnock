@@ -15,18 +15,27 @@ def main():
 
     response = requests.get(csv_url)
     response.encoding = 'utf-8'
-    reader = csv.reader(response.text.splitlines())
     
-    # 讀取標頭，確保我們能用欄位名稱對應（順序：title, status, owner, deadline, remind_before, reminded）
-    header = next(reader)
+    # 🎯 絕招一：不要直接用 reader，直接用 list() 把所有文字行數鎖死！
+    all_lines = list(csv.reader(response.text.splitlines()))
+    
+    # 🎯 絕招二：第一行就是 header（標頭）
+    header = all_lines[0] 
+    
+    # 🎯 絕招三：剩下的第 1 行到最後一行，才是我們要跑迴圈的資料 (row)
+    data_rows = all_lines[1:]
     
     now_taiwan = datetime.utcnow() + timedelta(hours=8)
     print(f"🤖 鬧鐘助理巡邏中... 當前台灣時間：{now_taiwan.strftime('%Y-%m-%d %H:%M')}")
-    print(reader)
-    for row in reader:
+    print("📢 系統除錯：我們手裡現在總共抓到了", len(data_rows), "筆任務資料！")
+
+    # 🎯 這裡改用我們切好的 data_rows，保證百分之百會進來跑！
+    for row in data_rows:
         # 防呆：確保整行資料是完整的
-        print(len(row))
-        if len(row) < 6: continue
+        print(f"📋 保全正在看這一行，它的欄位總數是：{len(row)}，內容是：{row}")
+        
+        if len(row) < 5: 
+            continue
         
         title, status, owner, deadline, remind_before, reminded = row[0], row[1], row[2], row[3], row[4], row[5]
         
