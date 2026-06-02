@@ -2,17 +2,14 @@
 import streamlit as st
 import pandas as pd
 import datetime
-import requests
 from streamlit_gsheets import GSheetsConnection
 
 st.set_page_config(layout="wide")
 st.title("📋 階段四終極完成版：GitHub 雲端同步 Trello 看板")
-st.caption("授權標註：edit by 闕河正 | 完整功能版 (精準時間提醒擴充)")
+st.caption("授權標註：edit by 闕河正 | 完整功能版")
 
-# 🔒 核心安全：從祕密抽屜讀取所有網址變數（請確保有以下這三行）
+# 🔒 核心安全：讀取 Secrets 中的 Discord 網址
 WEBHOOK_URL = st.secrets.get("DISCORD_WEBHOOK_URL")
-GOOGLE_SCRIPT_URL = st.secrets.get("GOOGLE_SCRIPT_URL")  # 🎯 宣告給 Python 認識！
-GOOGLE_SHEET_URL = st.secrets.get("GOOGLE_SHEET_URL")
 
 # 🤝 原生連線：直接跟 Google Sheets 握手
 conn = st.connection("gsheets", type=GSheetsConnection)
@@ -31,42 +28,45 @@ with st.form("task_input_form", clear_on_submit=True):
     with c_owner:
         new_owner = st.text_input("👤 負責人", placeholder="誰來負責...")
         
-    # ─── ➕ 闕教授提案：新增時間與提前提醒設定 ───
+    # ─── ➕ 闕教授提案：增加時間與提前提醒設定 ───
     c_date, c_time, c_remind = st.columns([1, 1, 2])
     with c_date:
         task_date = st.date_input("📅 截止日期", datetime.date.today())
     with c_time:
         task_time = st.time_input("⏰ 截止時間", datetime.time(12, 0))
     with c_remind:
-        remind_mins = st.selectbox("🔔 提前多久提醒我？", [0, 5, 10, 20, 30, 60], format_func=lambda x: "時間到才提醒" if x==0 else f"任務開始前 {x} 分鐘")
+        remind_mins = st.selectbox("🔔 提前多久提醒我？", [0, 15, 30, 60], format_func=lambda x: "時間到才提醒" if x==0 else f"任務截止前 {x} 分鐘")
     # ──────────────────────────────────────────
     
     submit_btn = st.form_submit_button("確認指派並同步雲端")
 
-# 節錄 pages/1_📝_新增行程.py 按鈕觸發段落
 if submit_btn and new_title and new_owner:
+    # 組合成鬧鐘看得懂的標準時間格式字串： YYYY-MM-DD HH:MM
     deadline_str = f"{task_date} {task_time.strftime('%H:%M')}"
     
-    # 🎯 打包成全新結構，並加上 action 標記
-    event_data = {
-        "action": "create",
+    # 🎯 把時間與防重複的標記，順便包進這筆資料裡
+    new_data = {
         "title": new_title, 
         "status": new_status, 
         "owner": new_owner,
-        "deadline": deadline_str,        
-        "remind_before": int(remind_mins)
+        "deadline": deadline_str,        # ➕ 新增欄位
+        "remind_before": int(remind_mins),# ➕ 新增欄位
+        "reminded": "FALSE"               # ➕ 新增防爆欄位（預設未提醒）
     }
     
-    with st.spinner("正在同步寫入 Google 看板..."):
-        res = requests.post(GOOGLE_SCRIPT_URL, json=event_data)
-        if res.text == "SUCCESS":
-            st.success("🎉 任務已成功寫入雲端看板！")
-            st.rerun()
-            
+    # 💡 闕教授原創核心：用 pd.concat() 進行表格拼接
+    new_row = pd.DataFrame([new_data])
+    updated_df = pd.concat([df, new_row], ignore_index=True)
+    
+    # 🚀 直接利用套件更新雲端試算表
+    conn.update(worksheet="Tasks", data=updated_df)
+    st.success("🎉 任務與提醒時間已成功同步寫入 Google 試算表！")
+    st.rerun() 
+
 st.write("---")
 
 # ==========================================
-# 🗂️ 區塊二：下方 Trello 看板渲染 (維持原樣，但卡片多顯示時間)
+# 🗂️ 區塊二：下方 Trello 看板渲染 (完全保留您的精髓)
 # ==========================================
 st.write("### 🗂️ 看板動態狀態監控")
 trello_col1, trello_col2, trello_col3 = st.columns(3)
@@ -77,7 +77,6 @@ def render_cards(task_df):
             with st.container(border=True):
                 st.write(f"**📌 {row['title']}**")      
                 st.caption(f"負責人: {row['owner']}")   
-                # 💡 貼心調整：如果資料表裡有 deadline 欄位，就顯示在卡片上
                 if "deadline" in row and pd.notna(row["deadline"]):
                     st.caption(f"⏳ 截止: {row['deadline']} (提前 {row.get('remind_before', 0)} 分)")
     else:
