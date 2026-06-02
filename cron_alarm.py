@@ -37,14 +37,14 @@ def main():
     
     now_taiwan = datetime.utcnow() + timedelta(hours=8)
     print(f"🤖 鬧鐘助理巡邏中... 當前台灣時間：{now_taiwan.strftime('%Y-%m-%d %H:%M')}")
-    print("🖕 闕教授的國罵除錯通道：程式順利活過標頭關卡！")
+    print("🖕 機車咧!!有沒有過！")
 
     data_rows = all_lines[1:] # 切出實體資料
 
     for index, row in enumerate(data_rows, start=2):
         print(f"📋 正在檢查第 {index} 橫列資料：{row}")
         if len(row) < 5: 
-            print("   ⚠️ 欄位不足 5 個，跳過！")
+            print(" 欄位不足 5 個，跳過！")
             continue
         
         title, status, owner, deadline, remind_before = row[0].strip(), row[1].strip(), row[2].strip(), row[3].strip(), row[4].strip()
