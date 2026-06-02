@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 def main():
     DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
     GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")
-    GOOGLE_SCRIPT_URL = os.getenv("GOOGLE_SCRIPT_URL") # 👈 鬧鐘也需要這個傳送門網址
     
     if "/edit" in GOOGLE_SHEET_URL:
         csv_url = GOOGLE_SHEET_URL.split("/edit")[0] + "/export?format=csv"
@@ -40,8 +39,10 @@ def main():
                 
             trigger_time = deadline_time - timedelta(minutes=remind_before_mins)
             
-            # 🔍 時間到了！
-            if now_taiwan >= trigger_time:
+            # 🔍 終極安全機制：現在時間大於提醒點，且「過期不超過 15 分鐘」！
+            # 靠著這條時間線，保全每次巡邏，一輩子就只會在這個 15 分鐘的黃金交叉點抓到它、並只發一次通知！
+            if trigger_time <= now_taiwan < (trigger_time + timedelta(minutes=15)):
+                
                 # 🚀 動作一：發送 Discord
                 payload = {
                     "content": f"⏰ **【即將到期提醒】** 任務即將截止！",
@@ -54,15 +55,8 @@ def main():
                 requests.post(DISCORD_WEBHOOK_URL, json=payload)
                 print(f"🟢 Discord 通知成功：{title}")
                 
-                # 📝 動作二：立刻回寫 Google Sheets，把狀態更新為已提醒！
-                update_data = {
-                    "action": "mark_reminded",
-                    "title": title,
-                    "owner": owner
-                }
-                # 呼叫 Apps Script 幫我們在對應的那一列 F 欄填上 TRUE
-                requests.post(GOOGLE_SCRIPT_URL, json=update_data)
-                print(f"🔒 雲端狀態已鎖定，下次不會再重複發送【{title}】。")
+                # 💡 這裡原本的「動作二」請完全刪除！因為我們不用回寫 Google Sheet，
+                # 只要靠上面的 time 判定，下一個 15 分鐘保全醒來時，now_taiwan 就會超過 15 分鐘區間，自動閉嘴！
 
 if __name__ == "__main__":
     main()
