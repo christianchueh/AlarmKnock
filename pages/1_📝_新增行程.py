@@ -1,5 +1,6 @@
 import streamlit as st
 import datetime
+import pandas as pd  # 🎯 就是漏了這行！
 
 # 🎯 核心精髓：把剛剛寫好的功能積木與物件工廠全部 import 進來！
 from modules.utils import clean_content, format_time
