@@ -5,6 +5,7 @@ import requests
 from datetime import datetime, timedelta
 
 def main():
+    print(f"測試")
     DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
     GOOGLE_SHEET_URL = os.getenv("GOOGLE_SHEET_URL")
     
