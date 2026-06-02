@@ -27,19 +27,24 @@ with col2:
 
 st.divider()
 
-# 3. 按了按鈕 ➔ 呼叫工廠 ➔ 生產物件 ➔ 裝箱
-if st.button("🧱 生產行程物件並存入清單"):
-    # 🧱 使用功能積木一：格式化時間字串
+# 節錄 pages/1_📝_新增行程.py 當中的按鈕觸發段落
+if st.button("📊 生產物件並寫入 Google Sheets"):
     pretty_time = format_time(date_input, time_input)
-    # 🧱 使用功能積木二：清理與過濾文字長度
     safe_title, safe_details = clean_content(title_input, details_input)
     
-    # 🏭 使用物件工廠：正式實例化一個 Event 物件
+    # 🏭 生產物件
     new_event = Event(safe_title, safe_details, pretty_time)
     
-    # 📦 裝箱：把物件丟進清單
-    st.session_state.events_list.append(new_event)
-    st.success(f"✅ 成功生產一個行程物件：【{new_event.title}】！")
+    # 📝 轉換成多包含「時間比對」與「是否通知過」的字典
+    event_dict = new_event.to_dict()
+    event_dict["raw_datetime"] = f"{date_input} {time_input.strftime('%H:%M')}"
+    event_dict["reminded"] = "FALSE"  # 預設為未通知 (注意 Google Sheet 會自動轉成大寫 FALSE)
+    
+    new_row_df = pd.DataFrame([event_dict])
+    
+    with st.spinner("正在同步到 Google 雲端試算表..."):
+        conn.create(data=new_row_df)
+        st.success(f"🟢 成功！【{new_event.title}】已即時寫入 Google 試算表！")
 
 st.divider()
 
